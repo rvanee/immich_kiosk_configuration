@@ -1,0 +1,196 @@
+#
+# WARNING: To install Immich, follow our guide: https://docs.immich.app/install/docker-compose
+#
+# Make sure to use the docker-compose.yml of the current release:
+#
+# https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml
+#
+# The compose file on main may not be compatible with the latest release.
+
+name: immich
+
+services:
+  immich-server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    # extends:
+    #   file: hwaccel.transcoding.yml
+    #   service: cpu # set to one of [nvenc, quicksync, rkmpp, vaapi, vaapi-wsl] for accelerated transcoding
+    volumes:
+      # Do not edit the next line. If you want to change the media storage location on your system, edit the value of UPLOAD_LOCATION in the .env file
+      - ${UPLOAD_LOCATION}:/data
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - stack.env
+    ports:
+      - '2283:2283'
+    depends_on:
+      - redis
+      - database
+    restart: always
+    healthcheck:
+      disable: false
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    # For hardware acceleration, add one of -[armnn, cuda, rocm, openvino, rknn] to the image tag.
+    # Example tag: ${IMMICH_VERSION:-release}-cuda
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    # extends: # uncomment this section for hardware acceleration - see https://docs.immich.app/features/ml-hardware-acceleration
+    #   file: hwaccel.ml.yml
+    #   service: cpu # set to one of [armnn, cuda, rocm, openvino, openvino-wsl, rknn] for accelerated inference - use the `-wsl` version for WSL2 where applicable
+    volumes:
+      - model-cache:/cache
+    env_file:
+      - stack.env
+    restart: always
+    healthcheck:
+      disable: false
+
+  redis:
+    container_name: immich_redis
+    image: docker.io/valkey/valkey:9@sha256:546304417feac0874c3dd576e0952c6bb8f06bb4093ea0c9ca303c73cf458f63
+    healthcheck:
+      test: redis-cli ping || exit 1
+    restart: always
+
+  database:
+    container_name: immich_postgres
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_DB: ${DB_DATABASE_NAME}
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+      # Uncomment the DB_STORAGE_TYPE: 'HDD' var if your database isn't stored on SSDs
+      # DB_STORAGE_TYPE: 'HDD'
+    volumes:
+      # Do not edit the next line. If you want to change the database storage location on your system, edit the value of DB_DATA_LOCATION in the .env file
+      - ${DB_DATA_LOCATION}:/var/lib/postgresql/data
+    shm_size: 128mb
+    restart: always
+    healthcheck:
+      disable: false
+
+  immich-kiosk:
+    image: ghcr.io/damongolding/immich-kiosk:latest
+    container_name: immich-kiosk
+    tty: true
+    environment:
+      LANG: "en_GB"
+      TZ: "Europe/Amsterdam"
+      # Required settings
+      KIOSK_IMMICH_API_KEY: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      KIOSK_IMMICH_URL: "http://192.168.50.75:2283"
+      # External url for image links/QR codes
+      KIOSK_IMMICH_EXTERNAL_URL: ""
+      # Clock
+      KIOSK_SHOW_TIME: true
+      KIOSK_TIME_FORMAT: 24
+      KIOSK_SHOW_DATE: false
+      KIOSK_DATE_FORMAT: YYYY/MM/DD
+      KIOSK_CLOCK_SOURCE: client
+      # Kiosk behaviour
+      KIOSK_DURATION: 6
+      KIOSK_DISABLE_SCREENSAVER: true
+      KIOSK_OPTIMIZE_IMAGES: false
+      KIOSK_USE_GPU: true
+      KIOSK_BURN_IN_INTERVAL: 0
+      KIOSK_BURN_IN_DURATION: 30
+      KIOSK_BURN_IN_OPACITY: 70
+      # Asset sources
+      KIOSK_SHOW_ARCHIVED: false
+      KIOSK_ALBUMS: "xxxxxxxx-yyyy-zzzz-XXXX-YYYYYYYYYYYY,xxxxxxxx-yyyy-zzzz-XXXX-YYYYYYYYYYYY"
+      #KIOSK_ALBUM_ORDER: random
+      #KIOSK_EXCLUDED_ALBUMS: "ALBUM_ID,ALBUM_ID,ALBUM_ID"
+      #KIOSK_PEOPLE: "PERSON_ID,PERSON_ID,PERSON_ID"
+      #KIOSK_REQUIRE_ALL_PEOPLE: false
+      #KIOSK_EXCLUDED_PEOPLE: "PERSON_ID,PERSON_ID,PERSON_ID"
+      #KIOSK_DATES: "DATE_RANGE,DATE_RANGE,DATE_RANGE"
+      #KIOSK_TAGS: "TAG_VALUE,TAG_VALUE,TAG_VALUE"
+      #KIOSK_EXCLUDED_TAGS: "TAG_VALUE,TAG_VALUE,TAG_VALUE"
+      #KIOSK_EXCLUDED_PARTNERS: "PARTNER_ID"
+      #KIOSK_MEMORIES: false
+      #KIOSK_BLACKLIST: "ASSET_ID,ASSET_ID,ASSET_ID"
+      # FILTER
+      KIOSK_DATE_FILTER: ""
+      # UI
+      KIOSK_SHOW_PROGRESS_BAR: true
+      KIOSK_DISABLE_NAVIGATION: false
+      KIOSK_DISABLE_UI: false
+      KIOSK_FRAMELESS: false
+      KIOSK_HIDE_CURSOR: false
+      KIOSK_FONT_SIZE: 100
+      KIOSK_BACKGROUND_BLUR: true
+      KIOSK_BACKGROUND_BLUR_AMOUNT: 10
+      KIOSK_THEME: fade
+      KIOSK_LAYOUT: splitview
+      KIOSK_SHOW_USER: false
+      # Sleep mode
+      # KIOSK_SLEEP_START: 22
+      # KIOSK_SLEEP_END: 7
+      # KIOSK_SLEEP_DIM_SCREEN: false
+      # Transistion options
+      KIOSK_TRANSITION: none
+      KIOSK_FADE_TRANSITION_DURATION: 1
+      KIOSK_CROSS_FADE_TRANSITION_DURATION: 1
+      # Image display settings
+      KIOSK_IMAGE_FIT: contain
+      KIOSK_IMAGE_EFFECT: smart-zoom
+      KIOSK_IMAGE_EFFECT_AMOUNT: 120
+      KIOSK_USE_ORIGINAL_IMAGE: false
+      # Video
+      KIOSK_SHOW_VIDEOS: true
+      KIOSK_LIVE_PHOTOS: false
+      KIOSK_LIVE_PHOTO_LOOP_DELAY: 0
+      # Image metadata
+      KIOSK_SHOW_OWNER: false
+      KIOSK_SHOW_ALBUM_NAME: false
+      KIOSK_SHOW_PERSON_NAME: false
+      KIOSK_SHOW_PERSON_AGE: false
+      KIOSK_SHOW_IMAGE_TIME: false
+      KIOSK_IMAGE_TIME_FORMAT: 24
+      KIOSK_SHOW_IMAGE_DATE: false
+      KIOSK_IMAGE_DATE_FORMAT: YYYY-MM-DD
+      KIOSK_SHOW_IMAGE_DESCRIPTION: false
+      KIOSK_SHOW_IMAGE_CAMERA: false
+      KIOSK_SHOW_IMAGE_EXIF: false
+      KIOSK_SHOW_IMAGE_LOCATION: false
+      KIOSK_HIDE_COUNTRIES: "HIDDEN_COUNTRY,HIDDEN_COUNTRY"
+      KIOSK_SHOW_IMAGE_ID: false
+      KIOSK_SHOW_IMAGE_QR: false
+      KIOSK_SHOW_MORE_INFO: false
+      KIOSK_SHOW_MORE_INFO_IMAGE_LINK: false
+      KIOSK_SHOW_MORE_INFO_QR_CODE: false
+      # More info actions
+      KIOSK_LIKE_BUTTON_ACTION: favorite
+      KIOSK_HIDE_BUTTON_ACTION: tag
+      # Kiosk settings
+      KIOSK_PORT: 3000
+      KIOSK_BEHIND_PROXY: false
+      KIOSK_DISABLE_URL_QUERIES: false
+      KIOSK_DISABLE_CONFIG_ENDPOINT: false
+      KIOSK_ENABLE_URL_BUILDER: false
+      KIOSK_WATCH_CONFIG: false
+      KIOSK_FETCHED_ASSETS_SIZE: 1000
+      KIOSK_HTTP_TIMEOUT: 20
+      KIOSK_PASSWORD: ""
+      KIOSK_CACHE: true
+      KIOSK_PREFETCH: true
+      KIOSK_ASSET_WEIGHTING: true
+    ports:
+      - 3000:3000
+    volumes:
+      - ./config:/config
+      # - ./custom.css:/custom.css
+      # - ./offline-assets:/offline-assets
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  model-cache:
