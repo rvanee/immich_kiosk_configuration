@@ -100,7 +100,7 @@ services:
       KIOSK_BURN_IN_OPACITY: 70
       # Asset sources
       KIOSK_SHOW_ARCHIVED: false
-      KIOSK_ALBUMS: "xxxxxxxx-yyyy-zzzz-XXXX-YYYYYYYYYYYY,xxxxxxxx-yyyy-zzzz-XXXX-YYYYYYYYYYYY"
+      #KIOSK_ALBUMS: "xxxxxxxx-yyyy-zzzz-XXXX-YYYYYYYYYYYY,xxxxxxxx-yyyy-zzzz-XXXX-YYYYYYYYYYYY"
       #KIOSK_ALBUM_ORDER: random
       #KIOSK_EXCLUDED_ALBUMS: "ALBUM_ID,ALBUM_ID,ALBUM_ID"
       #KIOSK_PEOPLE: "PERSON_ID,PERSON_ID,PERSON_ID"
