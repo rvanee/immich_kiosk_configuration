@@ -81,7 +81,7 @@ services:
       TZ: "Europe/Amsterdam"
       # Required settings
       KIOSK_IMMICH_API_KEY: "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-      KIOSK_IMMICH_URL: "http://192.168.50.75:2283"
+      KIOSK_IMMICH_URL: "http://192.168.x.y:2283"
       # External url for image links/QR codes
       KIOSK_IMMICH_EXTERNAL_URL: ""
       # Clock
